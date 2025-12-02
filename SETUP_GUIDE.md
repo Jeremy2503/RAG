@@ -12,7 +12,7 @@ Before you begin, ensure you have:
 - [ ] OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
 - [ ] Git installed
 - [ ] Code editor (VS Code recommended)
-
+##asldkj
 ## 🚀 Quick Start (3 Steps)
 
 ### Step 1: Setup Backend (5 minutes)
