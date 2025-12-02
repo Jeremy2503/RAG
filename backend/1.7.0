@@ -1,0 +1,67 @@
+Requirement already satisfied: Pillow in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (12.0.0)
+Collecting easyocr
+  Downloading easyocr-1.7.2-py3-none-any.whl.metadata (10 kB)
+Requirement already satisfied: torch in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from easyocr) (2.9.1)
+Collecting torchvision>=0.5 (from easyocr)
+  Downloading torchvision-0.24.1-cp311-cp311-win_amd64.whl.metadata (5.9 kB)
+Collecting opencv-python-headless (from easyocr)
+  Downloading opencv_python_headless-4.12.0.88-cp37-abi3-win_amd64.whl.metadata (20 kB)
+Requirement already satisfied: scipy in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from easyocr) (1.16.3)
+Requirement already satisfied: numpy in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from easyocr) (1.26.4)
+Collecting scikit-image (from easyocr)
+  Downloading scikit_image-0.25.2-cp311-cp311-win_amd64.whl.metadata (14 kB)
+Collecting python-bidi (from easyocr)
+  Downloading python_bidi-0.6.7-cp311-cp311-win_amd64.whl.metadata (5.0 kB)
+Requirement already satisfied: PyYAML in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from easyocr) (6.0.3)
+Collecting Shapely (from easyocr)
+  Downloading shapely-2.1.2-cp311-cp311-win_amd64.whl.metadata (7.1 kB)
+Collecting pyclipper (from easyocr)
+  Downloading pyclipper-1.4.0-cp311-cp311-win_amd64.whl.metadata (8.8 kB)
+Collecting ninja (from easyocr)
+  Using cached ninja-1.13.0-py3-none-win_amd64.whl.metadata (5.1 kB)
+Requirement already satisfied: filelock in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from torch->easyocr) (3.20.0)
+Requirement already satisfied: typing-extensions>=4.10.0 in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from torch->easyocr) (4.15.0)
+Requirement already satisfied: sympy>=1.13.3 in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from torch->easyocr) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from torch->easyocr) (3.6)
+Requirement already satisfied: jinja2 in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from torch->easyocr) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from torch->easyocr) (2025.10.0)
+Collecting numpy (from easyocr)
+  Downloading numpy-2.2.6-cp311-cp311-win_amd64.whl.metadata (60 kB)
+     ---------------------------------------- 60.8/60.8 kB 3.2 MB/s eta 0:00:00
+Collecting imageio!=2.35.0,>=2.33 (from scikit-image->easyocr)
+  Downloading imageio-2.37.2-py3-none-any.whl.metadata (9.7 kB)
+Collecting tifffile>=2022.8.12 (from scikit-image->easyocr)
+  Downloading tifffile-2025.10.16-py3-none-any.whl.metadata (31 kB)
+Requirement already satisfied: packaging>=21 in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from scikit-image->easyocr) (24.2)
+Collecting lazy-loader>=0.4 (from scikit-image->easyocr)
+  Downloading lazy_loader-0.4-py3-none-any.whl.metadata (7.6 kB)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from sympy>=1.13.3->torch->easyocr) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in c:\dev\multi-agent-rag-backup\backend\venv\lib\site-packages (from jinja2->torch->easyocr) (3.0.3)
+Downloading easyocr-1.7.2-py3-none-any.whl (2.9 MB)
+   ---------------------------------------- 2.9/2.9 MB 20.3 MB/s eta 0:00:00
+Downloading torchvision-0.24.1-cp311-cp311-win_amd64.whl (4.0 MB)
+   ---------------------------------------- 4.0/4.0 MB 36.6 MB/s eta 0:00:00
+Using cached ninja-1.13.0-py3-none-win_amd64.whl (309 kB)
+Downloading opencv_python_headless-4.12.0.88-cp37-abi3-win_amd64.whl (38.9 MB)
+   ---------------------------------------- 38.9/38.9 MB 34.4 MB/s eta 0:00:00
+Downloading numpy-2.2.6-cp311-cp311-win_amd64.whl (12.9 MB)
+   ---------------------------------------- 12.9/12.9 MB 43.7 MB/s eta 0:00:00
+Downloading pyclipper-1.4.0-cp311-cp311-win_amd64.whl (104 kB)
+   ---------------------------------------- 104.4/104.4 kB ? eta 0:00:00
+Downloading python_bidi-0.6.7-cp311-cp311-win_amd64.whl (161 kB)
+   ---------------------------------------- 161.3/161.3 kB ? eta 0:00:00
+Downloading scikit_image-0.25.2-cp311-cp311-win_amd64.whl (12.8 MB)
+   ---------------------------------------- 12.8/12.8 MB 36.4 MB/s eta 0:00:00
+Downloading shapely-2.1.2-cp311-cp311-win_amd64.whl (1.7 MB)
+   ---------------------------------------- 1.7/1.7 MB 55.2 MB/s eta 0:00:00
+Downloading imageio-2.37.2-py3-none-any.whl (317 kB)
+   --------------------------------------- 317.6/317.6 kB 20.5 MB/s eta 0:00:00
+Downloading lazy_loader-0.4-py3-none-any.whl (12 kB)
+Downloading tifffile-2025.10.16-py3-none-any.whl (231 kB)
+   ---------------------------------------- 231.2/231.2 kB ? eta 0:00:00
+Installing collected packages: python-bidi, pyclipper, numpy, ninja, lazy-loader, tifffile, Shapely, opencv-python-headless, imageio, torchvision, scikit-image, easyocr
+  Attempting uninstall: numpy
+    Found existing installation: numpy 1.26.4
+    Uninstalling numpy-1.26.4:
+      Successfully uninstalled numpy-1.26.4
+Successfully installed Shapely-2.1.2 easyocr-1.7.2 imageio-2.37.2 lazy-loader-0.4 ninja-1.13.0 numpy-2.2.6 opencv-python-headless-4.12.0.88 pyclipper-1.4.0 python-bidi-0.6.7 scikit-image-0.25.2 tifffile-2025.10.16 torchvision-0.24.1
