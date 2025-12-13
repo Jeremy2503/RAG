@@ -302,6 +302,11 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60      # Token expiry
 
 # CORS
 CORS_ORIGINS=http://localhost:5173      # Frontend URL
+
+# Opik Observability (Optional)
+# Get your API key from: https://www.comet.com/signup?from=llm
+OPIK_API_KEY=                # Your Opik API key (leave empty to disable)
+OPIK_WORKSPACE=rag_platform  # Your Opik workspace name
 ```
 
 ---

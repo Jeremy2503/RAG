@@ -2,6 +2,7 @@
 LangGraph Agent Orchestrator
 Coordinates multi-agent workflow using LangGraph for state management.
 Implements proper parallel agent execution and state reducers.
+Includes Opik observability for full workflow tracing.
 """
 
 from typing import Dict, Any, List, TypedDict, Annotated, Literal
@@ -17,6 +18,16 @@ from .research_agent import ResearchAgent
 from .it_policy_agent import ITPolicyAgent
 from .hr_policy_agent import HRPolicyAgent
 from app.repositories.chroma_repo import ChromaRepository
+from app.config import settings
+from app.utils.observability import (
+    init_opik,
+    is_opik_enabled,
+    log_agent_metrics,
+    create_langchain_callbacks,
+    get_project_name,
+    log_trace_to_project,
+    OpikProjectTracer
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +83,9 @@ class AgentOrchestrator:
         """
         self.chroma_repo = chroma_repo
         
+        # Initialize Opik observability
+        self._init_observability()
+        
         # Initialize agents
         self.coordinator = CoordinatorAgent()
         self.research_agent = ResearchAgent(chroma_repo)
@@ -82,6 +96,25 @@ class AgentOrchestrator:
         self.graph = self._build_graph()
         
         logger.info("Agent Orchestrator initialized")
+    
+    def _init_observability(self):
+        """Initialize Opik observability if configured."""
+        if settings.opik_api_key:
+            # Use configured project name
+            project_name = settings.opik_project_name or "multi-agent-rag"
+            
+            success = init_opik(
+                api_key=settings.opik_api_key,
+                workspace=settings.opik_workspace if settings.opik_workspace else None,
+                project_name=project_name
+            )
+            if success:
+                logger.info(f"✅ Opik observability enabled - Project: {project_name}")
+                logger.info("   View traces at: https://www.comet.com/opik")
+            else:
+                logger.warning("⚠️ Opik initialization failed - running without observability")
+        else:
+            logger.info("ℹ️ Opik API key not configured - observability disabled")
     
     def _build_graph(self) -> StateGraph:
         """
@@ -138,6 +171,7 @@ class AgentOrchestrator:
     async def _execute_agents_node(self, state: AgentState) -> Dict[str, Any]:
         """
         Execute the selected agents in parallel.
+        Tracks individual agent performance with Opik.
         
         Args:
             state: Current agent state
@@ -146,29 +180,54 @@ class AgentOrchestrator:
             Updated state with agent responses
         """
         agents_to_invoke = state.get("agents_to_invoke", ["research"])
-        logger.info(f"Executing agents in parallel: {agents_to_invoke}")
+        logger.info(f"[PARALLEL EXECUTION] Starting agents: {agents_to_invoke}")
+        
+        execution_start = datetime.now().timestamp()
         
         # Create tasks for parallel execution
         tasks = []
+        agent_names = []
         for agent_name in agents_to_invoke:
             if agent_name == "research":
                 tasks.append(self.research_agent.process(state["query"]))
+                agent_names.append("Research Agent")
             elif agent_name == "it_policy":
                 tasks.append(self.it_agent.process(state["query"]))
+                agent_names.append("IT Policy Agent")
             elif agent_name == "hr_policy":
                 tasks.append(self.hr_agent.process(state["query"]))
+                agent_names.append("HR Policy Agent")
         
         # Execute all agents in parallel
         if tasks:
             responses = await asyncio.gather(*tasks, return_exceptions=True)
             
+            execution_time = datetime.now().timestamp() - execution_start
+            
             # Filter out exceptions and collect valid responses
             valid_responses = []
             for i, response in enumerate(responses):
                 if isinstance(response, Exception):
-                    logger.error(f"Agent {agents_to_invoke[i]} failed: {response}")
+                    logger.error(f"[AGENT FAILED] {agent_names[i]}: {response}")
+                    log_agent_metrics(
+                        agent_name=agent_names[i],
+                        success=False,
+                        error=str(response)
+                    )
                 else:
                     valid_responses.append(response)
+                    # Log successful agent metrics
+                    sources_count = response.get("document_count", len(response.get("sources", [])))
+                    logger.info(
+                        f"[AGENT SUCCESS] {agent_names[i]} | "
+                        f"Sources: {sources_count}"
+                    )
+            
+            logger.info(
+                f"[PARALLEL EXECUTION] Complete | "
+                f"Agents: {len(valid_responses)}/{len(tasks)} succeeded | "
+                f"Time: {execution_time:.2f}s"
+            )
             
             return {"agent_responses": valid_responses}
         
@@ -344,6 +403,7 @@ Please provide a synthesized answer that combines the insights from all agents:"
     ) -> Dict[str, Any]:
         """
         Process a user query through the multi-agent workflow.
+        Fully instrumented with Opik observability - logs to project dashboard.
         
         Args:
             query: User query
@@ -354,6 +414,7 @@ Please provide a synthesized answer that combines the insights from all agents:"
             Final response with answer and metadata
         """
         logger.info(f"Processing query: {query[:100]}...")
+        start_time = datetime.now().timestamp()
         
         # Initialize state
         initial_state: AgentState = {
@@ -367,35 +428,129 @@ Please provide a synthesized answer that combines the insights from all agents:"
             "primary_agent": "",
             "sources": [],
             "processing_time": 0.0,
-            "start_time": datetime.now().timestamp(),
+            "start_time": start_time,
             "error": ""
         }
         
-        try:
-            # Execute the graph
-            final_state = await self.graph.ainvoke(initial_state)
-            
-            logger.info("Query processing completed successfully")
-            
-            return {
-                "answer": final_state.get("final_answer", "No answer generated"),
-                "primary_agent": final_state.get("primary_agent", "Unknown"),
-                "sources": final_state.get("sources", []),
-                "processing_time": final_state.get("processing_time", 0.0),
-                "routing_decision": final_state.get("routing_decision", {}),
-                "success": True
-            }
-            
-        except Exception as e:
-            logger.error(f"Error processing query: {e}", exc_info=True)
-            
-            return {
-                "answer": f"I apologize, but an error occurred while processing your query: {str(e)}",
-                "primary_agent": "Error",
-                "sources": [],
-                "processing_time": 0.0,
-                "routing_decision": {},
-                "success": False,
-                "error": str(e)
-            }
+        # Use Opik project tracer for complete workflow logging
+        async with OpikProjectTracer(
+            operation_name="rag_workflow",
+            tags=["workflow", "multi-agent", session_id[:8] if session_id else "no-session"]
+        ) as tracer:
+            try:
+                # Log input
+                tracer.log_input({
+                    "query": query[:500],
+                    "user_id": user_id,
+                    "session_id": session_id
+                })
+                
+                # Execute the graph
+                final_state = await self.graph.ainvoke(initial_state)
+                
+                processing_time = datetime.now().timestamp() - start_time
+                
+                # Extract routing confidence for observability
+                routing_decision = final_state.get("routing_decision", {})
+                routing_confidence = routing_decision.get("confidence", 0.0)
+                confidence_level = routing_decision.get("confidence_level", "UNKNOWN")
+                primary_agent = final_state.get("primary_agent", "Unknown")
+                sources_count = len(final_state.get("sources", []))
+                
+                # Log output to tracer
+                tracer.log_output({
+                    "answer_preview": final_state.get("final_answer", "")[:200],
+                    "primary_agent": primary_agent,
+                    "sources_count": sources_count,
+                    "confidence": routing_confidence,
+                    "confidence_level": confidence_level
+                })
+                
+                # Add feedback scores to Opik project
+                tracer.add_feedback_score("confidence", routing_confidence, f"Routing: {confidence_level}")
+                tracer.add_feedback_score("sources_quality", min(sources_count / 5.0, 1.0), f"{sources_count} sources")
+                
+                # Latency score (assume 10s is bad, 1s is good)
+                latency_score = max(0, min(1, 1 - (processing_time / 10)))
+                tracer.add_feedback_score("latency", latency_score, f"{processing_time:.2f}s")
+                
+                # Log orchestrator-level metrics
+                log_agent_metrics(
+                    agent_name="Orchestrator",
+                    confidence=routing_confidence,
+                    latency_ms=processing_time * 1000,
+                    sources_retrieved=sources_count,
+                    success=True
+                )
+                
+                # Log complete workflow trace to Opik project
+                log_trace_to_project(
+                    name=f"query:{query[:50]}",
+                    input_data={
+                        "query": query,
+                        "user_id": user_id,
+                        "session_id": session_id
+                    },
+                    output_data={
+                        "answer": final_state.get("final_answer", "")[:500],
+                        "primary_agent": primary_agent,
+                        "sources_count": sources_count
+                    },
+                    feedback_scores=[
+                        {"name": "confidence", "value": routing_confidence, "reason": confidence_level},
+                        {"name": "latency", "value": latency_score, "reason": f"{processing_time:.2f}s"},
+                        {"name": "sources", "value": min(sources_count / 5.0, 1.0), "reason": f"{sources_count} sources"}
+                    ],
+                    tags=["workflow", primary_agent.lower().replace(" ", "_")],
+                    duration_ms=processing_time * 1000
+                )
+                
+                logger.info(
+                    f"[ORCHESTRATOR] Query processed | "
+                    f"Confidence: {routing_confidence:.0%} ({confidence_level}) | "
+                    f"Total time: {processing_time:.2f}s | "
+                    f"Primary agent: {primary_agent} | "
+                    f"Project: {get_project_name()}"
+                )
+                
+                return {
+                    "answer": final_state.get("final_answer", "No answer generated"),
+                    "primary_agent": primary_agent,
+                    "sources": final_state.get("sources", []),
+                    "processing_time": processing_time,
+                    "routing_decision": routing_decision,
+                    # Include confidence info in response
+                    "confidence": routing_confidence,
+                    "confidence_level": confidence_level,
+                    "success": True
+                }
+                
+            except Exception as e:
+                processing_time = datetime.now().timestamp() - start_time
+                
+                # Log error to tracer
+                tracer.log_metadata("error", str(e))
+                tracer.add_feedback_score("success", 0.0, f"Error: {str(e)[:100]}")
+                
+                # Log error metrics
+                log_agent_metrics(
+                    agent_name="Orchestrator",
+                    latency_ms=processing_time * 1000,
+                    success=False,
+                    error=str(e)
+                )
+                
+                logger.error(f"[ORCHESTRATOR] Error: {e}", exc_info=True)
+                
+                return {
+                    "answer": f"I apologize, but an error occurred while processing your query: {str(e)}",
+                    "primary_agent": "Error",
+                    "sources": [],
+                    "processing_time": processing_time,
+                    "routing_decision": {},
+                    "confidence": 0.0,
+                    "confidence_level": "ERROR",
+                    "success": False,
+                    "error": str(e)
+                }
 

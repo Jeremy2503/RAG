@@ -49,6 +49,10 @@ Pillow>=10.0.0
 easyocr>=1.7.0
 opencv-python-headless>=4.8.0,<4.10.0  # Compatible with numpy 1.x
 
+# LLM Observability
+# Using version 1.0.x to maintain compatibility with langchain-openai
+opik>=1.0.0,<1.5.0
+
 # Development (optional)
 pytest>=7.4.0
 pytest-asyncio>=0.23.0

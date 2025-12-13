@@ -2468,3 +2468,156 @@ body {
   }
 }
 
+/* ==================== Confidence Badge & Evaluation Styles ==================== */
+
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid;
+}
+
+.confidence-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.confidence-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confidence-text {
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.confidence-label {
+  opacity: 0.9;
+}
+
+/* Confidence Details Panel */
+.confidence-details {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  border: 1px solid;
+  animation: slideDown 0.2s ease;
+}
+
+.confidence-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.confidence-detail-header span:first-child {
+  font-weight: 600;
+  color: #f1f5f9;
+  font-size: 0.875rem;
+}
+
+.confidence-detail-method {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.confidence-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.confidence-detail-row span:first-child {
+  flex: 1;
+  color: #94a3b8;
+}
+
+.confidence-detail-row span:last-child {
+  font-weight: 600;
+  min-width: 40px;
+  text-align: right;
+}
+
+.confidence-bar-container {
+  flex: 2;
+  height: 6px;
+  background: rgba(100, 116, 139, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.confidence-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.confidence-tip {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(100, 116, 139, 0.2);
+  font-size: 0.8rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* Confidence Level Colors */
+.confidence-high {
+  --confidence-color: #10b981;
+}
+
+.confidence-medium {
+  --confidence-color: #f59e0b;
+}
+
+.confidence-low {
+  --confidence-color: #ef4444;
+}
+
+.confidence-very-low {
+  --confidence-color: #dc2626;
+}
+
+/* Responsive for Confidence */
+@media (max-width: 768px) {
+  .confidence-badge {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+  }
+  
+  .confidence-text {
+    font-size: 0.8rem;
+  }
+  
+  .confidence-details {
+    padding: 0.875rem;
+  }
+  
+  .confidence-detail-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .confidence-bar-container {
+    flex-basis: 100%;
+    order: 3;
+  }
+}
+

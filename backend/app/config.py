@@ -64,9 +64,10 @@ class Settings(BaseSettings):
     agent_max_iterations: int = Field(default=5, alias="AGENT_MAX_ITERATIONS")
     agent_timeout_seconds: int = Field(default=60, alias="AGENT_TIMEOUT_SECONDS")
     
-    # OPIK Evaluation
+    # OPIK Evaluation & Observability
     opik_api_key: str = Field(default="", alias="OPIK_API_KEY")
-    opik_workspace: str = Field(default="rag_platform", alias="OPIK_WORKSPACE")
+    opik_workspace: str = Field(default="", alias="OPIK_WORKSPACE")
+    opik_project_name: str = Field(default="multi-agent-rag", alias="OPIK_PROJECT_NAME")
     
     class Config:
         env_file = ".env"

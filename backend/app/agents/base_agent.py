@@ -1,6 +1,7 @@
 """
 Base Agent Class
 Abstract base class for all agents in the system.
+Includes Opik observability for tracing and confidence tracking.
 """
 
 from abc import ABC, abstractmethod
@@ -8,10 +9,17 @@ from typing import Dict, Any, List, Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 import logging
+import time
 
 from app.config import settings
 from app.repositories.chroma_repo import ChromaRepository
 from app.utils.embeddings import get_embedding_generator
+from app.utils.observability import (
+    get_opik_tracer,
+    is_opik_enabled,
+    log_agent_metrics,
+    create_langchain_callbacks
+)
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +159,7 @@ class BaseAgent(ABC):
     ) -> str:
         """
         Generate a response using the LLM.
+        Instrumented with Opik for observability.
         
         Args:
             query: User query
@@ -167,15 +176,43 @@ class BaseAgent(ABC):
         
         chain = prompt | self.llm
         
+        # Get Opik callbacks for tracing
+        callbacks = create_langchain_callbacks()
+        
+        start_time = time.time()
+        
         try:
-            response = await chain.ainvoke({
-                "context": context,
-                "query": query
-            })
+            # Invoke with Opik tracing callbacks
+            config = {"callbacks": callbacks} if callbacks else {}
+            response = await chain.ainvoke(
+                {"context": context, "query": query},
+                config=config
+            )
+            
+            latency_ms = (time.time() - start_time) * 1000
+            
+            # Log metrics for observability
+            log_agent_metrics(
+                agent_name=self.name,
+                latency_ms=latency_ms,
+                success=True
+            )
+            
+            logger.info(f"{self.name}: Generated response in {latency_ms:.0f}ms")
             
             return response.content
             
         except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
+            
+            # Log error metrics
+            log_agent_metrics(
+                agent_name=self.name,
+                latency_ms=latency_ms,
+                success=False,
+                error=str(e)
+            )
+            
             logger.error(f"{self.name}: Error generating response: {e}")
             return f"I apologize, but I encountered an error processing your query: {str(e)}"
     

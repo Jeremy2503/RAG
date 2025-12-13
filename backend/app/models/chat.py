@@ -75,6 +75,48 @@ class ChatRequest(BaseModel):
     context: Optional[Dict[str, Any]] = None
 
 
+class ConfidenceLevel(str, Enum):
+    """Confidence level enumeration for routing decisions."""
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+    VERY_LOW = "VERY_LOW"
+    ERROR = "ERROR"
+    UNKNOWN = "UNKNOWN"
+
+
+class EvaluationMetrics(BaseModel):
+    """Detailed evaluation metrics for response quality."""
+    hallucination_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Hallucination detection score (0=no hallucination, 1=hallucinated)"
+    )
+    answer_relevance_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="How relevant the answer is to the question (0-1)"
+    )
+    context_recall_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="How well the context covers the expected answer (0-1)"
+    )
+    context_precision_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="How precise the retrieved context is (0-1)"
+    )
+    evaluation_method: str = Field(
+        default="unknown",
+        description="Method used for evaluation (opik or heuristic)"
+    )
+
+
 class ChatResponse(BaseModel):
     """Response model for chat queries."""
     session_id: str
@@ -82,6 +124,28 @@ class ChatResponse(BaseModel):
     agent_used: AgentType
     sources: Optional[List[Dict[str, Any]]] = None
     processing_time: float  # seconds
+    
+    # Confidence and evaluation fields
+    confidence: Optional[float] = Field(
+        default=None, 
+        ge=0.0, 
+        le=1.0,
+        description="Overall confidence score (0-1)"
+    )
+    confidence_level: Optional[ConfidenceLevel] = Field(
+        default=None,
+        description="Human-readable confidence level"
+    )
+    confidence_explanation: Optional[str] = Field(
+        default=None,
+        description="Human-readable explanation of confidence"
+    )
+    
+    # Detailed evaluation metrics (optional)
+    evaluation: Optional[EvaluationMetrics] = Field(
+        default=None,
+        description="Detailed evaluation metrics from Opik"
+    )
     
     class Config:
         json_encoders = {

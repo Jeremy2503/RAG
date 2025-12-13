@@ -2,6 +2,7 @@
 Coordinator Agent
 Routes queries to appropriate specialist agents.
 Optimized for LangGraph multi-agent orchestration.
+Includes Opik observability for routing decisions and confidence tracking.
 """
 
 from typing import Dict, Any, Optional, List
@@ -9,8 +10,14 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 import logging
+import time
 
 from .base_agent import BaseAgent
+from app.utils.observability import (
+    log_agent_metrics,
+    create_langchain_callbacks,
+    is_opik_enabled
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +86,7 @@ Important:
         """
         Analyze query and determine which agents should handle it.
         Uses structured output for reliable parsing.
+        Instrumented with Opik for observability.
         
         Args:
             query: User query
@@ -88,19 +96,26 @@ Important:
             Routing decision with agents and reasoning
         """
         logger.info(f"Coordinator analyzing query: {query[:100]}...")
+        start_time = time.time()
         
         prompt = ChatPromptTemplate.from_messages([
             ("system", self.SYSTEM_PROMPT),
             ("human", "{query}")
         ])
         
+        # Get Opik callbacks for tracing
+        callbacks = create_langchain_callbacks()
         chain = prompt | self.llm | self.output_parser
         
         try:
-            routing_decision: RoutingDecision = await chain.ainvoke({
-                "query": query,
-                "format_instructions": self.output_parser.get_format_instructions()
-            })
+            config = {"callbacks": callbacks} if callbacks else {}
+            routing_decision: RoutingDecision = await chain.ainvoke(
+                {
+                    "query": query,
+                    "format_instructions": self.output_parser.get_format_instructions()
+                },
+                config=config
+            )
             
             # Validate agents
             valid_agents = ["it_policy", "hr_policy", "research"]
@@ -110,13 +125,35 @@ Important:
             if not filtered_agents:
                 filtered_agents = ["research"]
             
-            logger.info(f"Coordinator routed to: {filtered_agents} (confidence: {routing_decision.confidence:.2f})")
+            latency_ms = (time.time() - start_time) * 1000
+            
+            # Log observability metrics with confidence
+            log_agent_metrics(
+                agent_name=self.name,
+                confidence=routing_decision.confidence,
+                latency_ms=latency_ms,
+                success=True
+            )
+            
+            # Enhanced logging for confidence tracking
+            confidence_level = (
+                "HIGH" if routing_decision.confidence >= 0.8 
+                else "MEDIUM" if routing_decision.confidence >= 0.5 
+                else "LOW"
+            )
+            logger.info(
+                f"[ROUTING] {filtered_agents} | "
+                f"Confidence: {routing_decision.confidence:.0%} ({confidence_level}) | "
+                f"Latency: {latency_ms:.0f}ms"
+            )
             
             return {
                 "agent": self.name,
                 "agents_to_invoke": filtered_agents,
                 "reasoning": routing_decision.reasoning,
                 "confidence": routing_decision.confidence,
+                "confidence_level": confidence_level,
+                "latency_ms": latency_ms,
                 "success": True
             }
             
@@ -133,20 +170,44 @@ REASONING: [brief explanation]"""),
                 ])
                 
                 chain_fallback = prompt_fallback | self.llm
-                response = await chain_fallback.ainvoke({"query": query})
+                config = {"callbacks": callbacks} if callbacks else {}
+                response = await chain_fallback.ainvoke({"query": query}, config=config)
                 routing_decision = self._parse_routing_response(response.content)
                 
-                logger.info(f"Coordinator fallback routing to: {routing_decision['agents']}")
+                latency_ms = (time.time() - start_time) * 1000
+                
+                # Log fallback metrics (lower confidence)
+                log_agent_metrics(
+                    agent_name=self.name,
+                    confidence=0.5,
+                    latency_ms=latency_ms,
+                    success=True
+                )
+                
+                logger.info(f"[ROUTING FALLBACK] {routing_decision['agents']} | Confidence: 50% (MEDIUM)")
                 
                 return {
                     "agent": self.name,
                     "agents_to_invoke": routing_decision["agents"],
                     "reasoning": routing_decision["reasoning"],
                     "confidence": 0.5,
+                    "confidence_level": "MEDIUM",
+                    "latency_ms": latency_ms,
                     "success": True
                 }
             except Exception as fallback_error:
                 logger.error(f"Coordinator fallback error: {fallback_error}")
+                
+                latency_ms = (time.time() - start_time) * 1000
+                
+                # Log error metrics
+                log_agent_metrics(
+                    agent_name=self.name,
+                    confidence=0.3,
+                    latency_ms=latency_ms,
+                    success=False,
+                    error=str(e)
+                )
                 
                 # Ultimate fallback: route to research agent
                 return {
@@ -154,6 +215,8 @@ REASONING: [brief explanation]"""),
                     "agents_to_invoke": ["research"],
                     "reasoning": "Error in routing, defaulting to research agent",
                     "confidence": 0.3,
+                    "confidence_level": "LOW",
+                    "latency_ms": latency_ms,
                     "success": False,
                     "error": str(e)
                 }
