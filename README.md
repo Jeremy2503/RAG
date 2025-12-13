@@ -218,9 +218,6 @@ multi-agent-rag-backup/
 │   ├── package.json
 │   └── README.md
 │
-├── LANGGRAPH_MIGRATION.md                 # Technical migration guide
-├── LANGGRAPH_SUMMARY.md                   # Quick reference
-├── IMAGE_OCR_SETUP.md                     # OCR setup guide
 └── README.md                              # This file
 ```
 

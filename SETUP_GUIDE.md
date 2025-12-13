@@ -12,7 +12,7 @@ Before you begin, ensure you have:
 - [ ] OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
 - [ ] Git installed
 - [ ] Code editor (VS Code recommended)
-##asldkj
+
 ## 🚀 Quick Start (3 Steps)
 
 ### Step 1: Setup Backend (5 minutes)
@@ -72,8 +72,6 @@ cd backend
 source venv/bin/activate  # Windows: venv\Scripts\activate
 python -m app.main
 ```
-jeremyj2030_db_user
-jQkVvUiDtotu1sGt
 
 You should see:
 ```
@@ -407,7 +405,10 @@ mongosh "mongodb+srv://user:pass@cluster.mongodb.net/test"
    - Configure models in `.env`
 
 5. **Deploy**
-   - See `DEPLOYMENT.md` for production deployment guide
+   - Configure production environment variables
+   - Set up MongoDB Atlas for production
+   - Deploy backend to your hosting provider (e.g., Railway, Render, AWS)
+   - Deploy frontend to static hosting (Vercel, Netlify, etc.)
 
 ---
 
