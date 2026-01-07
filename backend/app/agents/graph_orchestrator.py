@@ -26,7 +26,7 @@ from app.utils.observability import (
     create_langchain_callbacks,
     get_project_name,
     log_trace_to_project,
-    OpikProjectTracer
+    track
 )
 
 logger = logging.getLogger(__name__)
@@ -395,6 +395,13 @@ Please provide a synthesized answer that combines the insights from all agents:"
                 "sources": all_sources
             }
     
+    @track(
+        name="agent_orchestrator::process_query",
+        project_name=get_project_name(),
+        tags=["orchestrator", "workflow", "multi-agent"],
+        capture_input=True,
+        capture_output=True
+    )
     async def process_query(
         self,
         query: str,
@@ -432,125 +439,93 @@ Please provide a synthesized answer that combines the insights from all agents:"
             "error": ""
         }
         
-        # Use Opik project tracer for complete workflow logging
-        async with OpikProjectTracer(
-            operation_name="rag_workflow",
-            tags=["workflow", "multi-agent", session_id[:8] if session_id else "no-session"]
-        ) as tracer:
-            try:
-                # Log input
-                tracer.log_input({
-                    "query": query[:500],
+        try:
+            # Execute the graph
+            final_state = await self.graph.ainvoke(initial_state)
+            
+            processing_time = datetime.now().timestamp() - start_time
+            
+            # Extract routing confidence for observability
+            routing_decision = final_state.get("routing_decision", {})
+            routing_confidence = routing_decision.get("confidence", 0.0)
+            confidence_level = routing_decision.get("confidence_level", "UNKNOWN")
+            primary_agent = final_state.get("primary_agent", "Unknown")
+            sources_count = len(final_state.get("sources", []))
+            
+            # Log orchestrator-level metrics
+            log_agent_metrics(
+                agent_name="Orchestrator",
+                confidence=routing_confidence,
+                latency_ms=processing_time * 1000,
+                sources_retrieved=sources_count,
+                success=True
+            )
+            
+            # Log complete workflow trace to Opik project
+            latency_score = max(0, min(1, 1 - (processing_time / 10)))
+            log_trace_to_project(
+                name=f"query:{query[:50]}",
+                input_data={
+                    "query": query,
                     "user_id": user_id,
                     "session_id": session_id
-                })
-                
-                # Execute the graph
-                final_state = await self.graph.ainvoke(initial_state)
-                
-                processing_time = datetime.now().timestamp() - start_time
-                
-                # Extract routing confidence for observability
-                routing_decision = final_state.get("routing_decision", {})
-                routing_confidence = routing_decision.get("confidence", 0.0)
-                confidence_level = routing_decision.get("confidence_level", "UNKNOWN")
-                primary_agent = final_state.get("primary_agent", "Unknown")
-                sources_count = len(final_state.get("sources", []))
-                
-                # Log output to tracer
-                tracer.log_output({
-                    "answer_preview": final_state.get("final_answer", "")[:200],
+                },
+                output_data={
+                    "answer": final_state.get("final_answer", "")[:500],
                     "primary_agent": primary_agent,
-                    "sources_count": sources_count,
-                    "confidence": routing_confidence,
-                    "confidence_level": confidence_level
-                })
-                
-                # Add feedback scores to Opik project
-                tracer.add_feedback_score("confidence", routing_confidence, f"Routing: {confidence_level}")
-                tracer.add_feedback_score("sources_quality", min(sources_count / 5.0, 1.0), f"{sources_count} sources")
-                
-                # Latency score (assume 10s is bad, 1s is good)
-                latency_score = max(0, min(1, 1 - (processing_time / 10)))
-                tracer.add_feedback_score("latency", latency_score, f"{processing_time:.2f}s")
-                
-                # Log orchestrator-level metrics
-                log_agent_metrics(
-                    agent_name="Orchestrator",
-                    confidence=routing_confidence,
-                    latency_ms=processing_time * 1000,
-                    sources_retrieved=sources_count,
-                    success=True
-                )
-                
-                # Log complete workflow trace to Opik project
-                log_trace_to_project(
-                    name=f"query:{query[:50]}",
-                    input_data={
-                        "query": query,
-                        "user_id": user_id,
-                        "session_id": session_id
-                    },
-                    output_data={
-                        "answer": final_state.get("final_answer", "")[:500],
-                        "primary_agent": primary_agent,
-                        "sources_count": sources_count
-                    },
-                    feedback_scores=[
-                        {"name": "confidence", "value": routing_confidence, "reason": confidence_level},
-                        {"name": "latency", "value": latency_score, "reason": f"{processing_time:.2f}s"},
-                        {"name": "sources", "value": min(sources_count / 5.0, 1.0), "reason": f"{sources_count} sources"}
-                    ],
-                    tags=["workflow", primary_agent.lower().replace(" ", "_")],
-                    duration_ms=processing_time * 1000
-                )
-                
-                logger.info(
-                    f"[ORCHESTRATOR] Query processed | "
-                    f"Confidence: {routing_confidence:.0%} ({confidence_level}) | "
-                    f"Total time: {processing_time:.2f}s | "
-                    f"Primary agent: {primary_agent} | "
-                    f"Project: {get_project_name()}"
-                )
-                
-                return {
-                    "answer": final_state.get("final_answer", "No answer generated"),
-                    "primary_agent": primary_agent,
-                    "sources": final_state.get("sources", []),
-                    "processing_time": processing_time,
-                    "routing_decision": routing_decision,
-                    # Include confidence info in response
-                    "confidence": routing_confidence,
-                    "confidence_level": confidence_level,
-                    "success": True
-                }
-                
-            except Exception as e:
-                processing_time = datetime.now().timestamp() - start_time
-                
-                # Log error to tracer
-                tracer.log_metadata("error", str(e))
-                tracer.add_feedback_score("success", 0.0, f"Error: {str(e)[:100]}")
-                
-                # Log error metrics
-                log_agent_metrics(
-                    agent_name="Orchestrator",
-                    latency_ms=processing_time * 1000,
-                    success=False,
-                    error=str(e)
-                )
-                
-                logger.error(f"[ORCHESTRATOR] Error: {e}", exc_info=True)
-                
-                return {
-                    "answer": f"I apologize, but an error occurred while processing your query: {str(e)}",
-                    "primary_agent": "Error",
-                    "sources": [],
-                    "processing_time": processing_time,
-                    "routing_decision": {},
-                    "confidence": 0.0,
-                    "confidence_level": "ERROR",
-                    "success": False,
-                    "error": str(e)
-                }
+                    "sources_count": sources_count
+                },
+                feedback_scores=[
+                    {"name": "confidence", "value": routing_confidence, "reason": confidence_level},
+                    {"name": "latency", "value": latency_score, "reason": f"{processing_time:.2f}s"},
+                    {"name": "sources", "value": min(sources_count / 5.0, 1.0), "reason": f"{sources_count} sources"}
+                ],
+                tags=["workflow", primary_agent.lower().replace(" ", "_")],
+                duration_ms=processing_time * 1000
+            )
+            
+            logger.info(
+                f"[ORCHESTRATOR] Query processed | "
+                f"Confidence: {routing_confidence:.0%} ({confidence_level}) | "
+                f"Total time: {processing_time:.2f}s | "
+                f"Primary agent: {primary_agent} | "
+                f"Project: {get_project_name()}"
+            )
+            
+            return {
+                "answer": final_state.get("final_answer", "No answer generated"),
+                "primary_agent": primary_agent,
+                "sources": final_state.get("sources", []),
+                "processing_time": processing_time,
+                "routing_decision": routing_decision,
+                # Include confidence info in response
+                "confidence": routing_confidence,
+                "confidence_level": confidence_level,
+                "success": True
+            }
+            
+        except Exception as e:
+            processing_time = datetime.now().timestamp() - start_time
+            
+            # Log error metrics
+            log_agent_metrics(
+                agent_name="Orchestrator",
+                latency_ms=processing_time * 1000,
+                success=False,
+                error=str(e)
+            )
+            
+            logger.error(f"[ORCHESTRATOR] Error: {e}", exc_info=True)
+            
+            return {
+                "answer": f"I apologize, but an error occurred while processing your query: {str(e)}",
+                "primary_agent": "Error",
+                "sources": [],
+                "processing_time": processing_time,
+                "routing_decision": {},
+                "confidence": 0.0,
+                "confidence_level": "ERROR",
+                "success": False,
+                "error": str(e)
+            }
 

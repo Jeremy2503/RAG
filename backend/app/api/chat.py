@@ -21,6 +21,7 @@ from app.services.agent_service import AgentService
 from app.repositories.mongodb_repo import get_mongodb_repo, MongoDBRepository
 from app.repositories.chroma_repo import get_chroma_repo, ChromaRepository
 from app.api.auth import get_current_user
+from app.utils.observability import track, get_project_name
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -42,6 +43,13 @@ async def get_agent_service(
 
 
 @router.post("/query", response_model=ChatResponse)
+@track(
+    name="api::process_chat_query",
+    project_name=get_project_name(),
+    tags=["api", "endpoint", "chat"],
+    capture_input=True,
+    capture_output=True
+)
 async def process_chat_query(
     request: ChatRequest,
     current_user: User = Depends(get_current_user),

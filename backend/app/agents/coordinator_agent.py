@@ -16,7 +16,9 @@ from .base_agent import BaseAgent
 from app.utils.observability import (
     log_agent_metrics,
     create_langchain_callbacks,
-    is_opik_enabled
+    is_opik_enabled,
+    track,
+    get_project_name
 )
 
 logger = logging.getLogger(__name__)
@@ -78,6 +80,13 @@ Important:
         )
         self.output_parser = PydanticOutputParser(pydantic_object=RoutingDecision)
     
+    @track(
+        name="coordinator_agent::process",
+        project_name=get_project_name(),
+        tags=["agent", "coordinator", "routing"],
+        capture_input=True,
+        capture_output=True
+    )
     async def process(
         self,
         query: str,

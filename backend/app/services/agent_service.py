@@ -19,6 +19,7 @@ from app.models.chat import (
     EvaluationMetrics
 )
 from app.services.evaluation_service import get_evaluation_service
+from app.utils.observability import track, get_project_name
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,13 @@ class AgentService:
         
         logger.info("Agent Service initialized with evaluation support")
     
+    @track(
+        name="agent_service::process_query",
+        project_name=get_project_name(),
+        tags=["service", "agent_service", "query"],
+        capture_input=True,
+        capture_output=True
+    )
     async def process_query(
         self,
         query: str,
