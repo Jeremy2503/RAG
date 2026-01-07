@@ -58,6 +58,59 @@ def detect_multiple_questions(query: str) -> List[str]:
         logger.info(f"Detected {len(questions)} questions via question marks")
         return questions
     
+    # NEW: Detect list-style questions: "what are X, Y and Z" or "what is X, Y, and Z"
+    # This handles queries like "what are the hr policy objects, employment types and byod policy"
+    list_question_patterns = [
+        # Pattern for "what are/is X, Y and Z" or "what are/is X, Y, and Z"
+        r'^(what (are|is|were|was))\s+(.+)$',
+        # Pattern for "tell me about X, Y and Z"
+        r'^(tell me about|explain|describe|list)\s+(.+)$',
+    ]
+    
+    for pattern in list_question_patterns:
+        match = re.match(pattern, query, re.IGNORECASE)
+        if match:
+            question_prefix = match.group(1).strip()  # "what are", "tell me about", etc.
+            items_part = match.group(-1).strip()  # The part with items (last group)
+            
+            # Check if items_part contains commas or "and" - indicating a list
+            if ',' in items_part or re.search(r'\s+and\s+', items_part, re.IGNORECASE):
+                # Split items by comma and "and"
+                # Handle both "X, Y and Z" and "X, Y, and Z" formats
+                # Split on comma or "and" (but preserve the structure)
+                items = re.split(r'\s*,\s*|\s+and\s+', items_part)
+                items = [item.strip() for item in items if item.strip()]
+                
+                # Filter out empty items and very short ones
+                items = [item for item in items if len(item) >= 2]
+                
+                # If we have multiple items, expand into separate questions
+                if len(items) >= 2:
+                    expanded_questions = []
+                    for item in items:
+                        # Reconstruct full question for each item
+                        if question_prefix.lower().startswith('what are'):
+                            expanded_questions.append(f"{question_prefix} {item}")
+                        elif question_prefix.lower().startswith('what is'):
+                            expanded_questions.append(f"{question_prefix} {item}")
+                        elif question_prefix.lower().startswith('what were'):
+                            expanded_questions.append(f"{question_prefix} {item}")
+                        elif question_prefix.lower().startswith('what was'):
+                            expanded_questions.append(f"{question_prefix} {item}")
+                        else:
+                            # For "tell me about", "explain", "describe", "list"
+                            expanded_questions.append(f"{question_prefix} {item}")
+                    
+                    # Validate expanded questions (must be at least 3 words each)
+                    validated_questions = [
+                        q for q in expanded_questions 
+                        if len(q.split()) >= 3  # At least 3 words for a meaningful question
+                    ]
+                    
+                    if len(validated_questions) >= 2:
+                        logger.info(f"Detected {len(validated_questions)} questions from list-style query: {[q[:50] for q in validated_questions]}")
+                        return validated_questions
+    
     # If no question marks or only one question found, check for connectors
     # Common patterns: "X and Y", "X also Y", "X what about Y", etc.
     connector_patterns = [
