@@ -355,18 +355,29 @@ class AgentOrchestrator:
 Your task is to combine the following responses from different specialized agents into a single, 
 coherent, and comprehensive answer to the user's question.
 
-Guidelines:
-1. Integrate information from all agents naturally
-2. Remove redundancies
-3. Maintain accuracy - don't add information not present in the responses
-4. Structure the answer logically
-5. Keep the tone professional and helpful"""),
-            ("human", """User Question: {query}
+CRITICAL GUIDELINES:
+1. If the user asked multiple questions, answer each one separately and clearly
+2. For each question, ONLY use information that is explicitly present in the agent responses
+3. If information is missing for any question, clearly state: "This information is not found in the available documents."
+4. DO NOT make up, infer, or extrapolate information not in the responses
+5. DO NOT combine unrelated information from different questions
+6. Structure your answer to clearly address each question if multiple were asked
+7. Remove redundancies only when information is truly duplicated
+8. Maintain accuracy - don't add information not present in the responses
+9. Keep the tone professional and helpful
+10. If an agent response explicitly states information is not found, respect that and don't try to fill gaps
+
+Your goal: Provide accurate answers based ONLY on what the agents found, clearly indicating when information is missing."""),
+            ("human", """User Question(s): {query}
 
 Agent Responses:
 {agent_responses}
 
-Please provide a synthesized answer that combines the insights from all agents:""")
+IMPORTANT: If the user asked multiple questions, make sure to answer each one separately. 
+If any question cannot be answered from the provided agent responses, clearly state that the information is not available.
+DO NOT invent or infer answers - only use what is explicitly provided in the agent responses.
+
+Please provide a synthesized answer:""")
         ])
         
         llm = ChatOpenAI(
