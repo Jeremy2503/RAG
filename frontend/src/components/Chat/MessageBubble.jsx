@@ -206,12 +206,7 @@ const MessageBubble = ({ message, showConfidence = true }) => {
               <span style={{ color: confidenceInfo.color }}>{confidenceInfo.percentage}%</span>
             </div>
             
-            {message.metadata?.sources_count !== undefined && (
-              <div className="confidence-detail-row">
-                <span>Sources Retrieved</span>
-                <span>{message.metadata.sources_count}</span>
-              </div>
-            )}
+            
 
             <p className="confidence-tip">
               {confidenceInfo.level === 'HIGH' && 
