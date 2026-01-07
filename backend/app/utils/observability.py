@@ -172,6 +172,46 @@ def opik_track(
     return decorator
 
 
+def get_track_decorator(
+    name: str = None,
+    tags: List[str] = None,
+    capture_input: bool = True,
+    capture_output: bool = True
+):
+    """
+    Helper function to create a configured @track decorator with project_name.
+    Returns a decorator that can be used directly with @ syntax.
+    
+    Usage:
+        @get_track_decorator(name="my_function", tags=["tag1", "tag2"])
+        async def my_function():
+            ...
+    
+    Args:
+        name: Optional name for the trace (defaults to function name)
+        tags: Optional list of tags for the trace
+        capture_input: Whether to capture function inputs
+        capture_output: Whether to capture function outputs
+        
+    Returns:
+        Decorator function that wraps the target function with @track
+    """
+    def decorator(func):
+        if not _opik_available or not track:
+            return func
+        
+        # Use Opik's track decorator with project_name
+        return track(
+            name=name or func.__name__,
+            capture_input=capture_input,
+            capture_output=capture_output,
+            project_name=_project_name,
+            tags=tags or []
+        )(func)
+    
+    return decorator
+
+
 class OpikProjectTracer:
     """
     Enhanced tracer that logs all operations to an Opik project.
@@ -1061,6 +1101,8 @@ __all__ = [
     "get_opik_tracer",
     "is_opik_enabled",
     "opik_track",
+    "get_track_decorator",
+    "track",  # Export track for direct use
     "OpikProjectTracer",
     "track_rag_query",
     "AgentTrace",

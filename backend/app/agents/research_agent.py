@@ -8,6 +8,7 @@ import logging
 
 from .base_agent import BaseAgent
 from app.repositories.chroma_repo import ChromaRepository
+from app.utils.observability import track, get_project_name
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,13 @@ If you cannot answer a question from the context, explicitly say so.
             chroma_repo=chroma_repo
         )
     
+    @track(
+        name="research_agent::process",
+        project_name=get_project_name(),
+        tags=["agent", "research"],
+        capture_input=True,
+        capture_output=True
+    )
     async def process(
         self,
         query: str,
