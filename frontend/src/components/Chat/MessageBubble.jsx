@@ -230,12 +230,7 @@ const MessageBubble = ({ message, showConfidence = true }) => {
           </div>
         )}
 
-        {message.metadata?.sources_count > 0 && !showDetails && (
-          <div className="message-sources-modern">
-            <span className="sources-icon">📚</span>
-            <span>{message.metadata.sources_count} source{message.metadata.sources_count > 1 ? 's' : ''} referenced</span>
-          </div>
-        )}
+        
 
         {!isUser && (
           <div className="message-actions">
