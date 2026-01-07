@@ -71,7 +71,7 @@ def detect_multiple_questions(query: str) -> List[str]:
         match = re.match(pattern, query, re.IGNORECASE)
         if match:
             question_prefix = match.group(1).strip()  # "what are", "tell me about", etc.
-            items_part = match.group(-1).strip()  # The part with items (last group)
+            items_part = match.groups()[-1].strip()  # The part with items (last group)
             
             # Check if items_part contains commas or "and" - indicating a list
             if ',' in items_part or re.search(r'\s+and\s+', items_part, re.IGNORECASE):
