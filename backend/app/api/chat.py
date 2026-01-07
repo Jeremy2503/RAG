@@ -18,6 +18,7 @@ from app.models.chat import (
 from app.models.user import User
 from app.services.chat_service import ChatService
 from app.services.agent_service import AgentService
+from app.services.guardrails_service import get_guardrails_service, GuardrailValidationError
 from app.repositories.mongodb_repo import get_mongodb_repo, MongoDBRepository
 from app.repositories.chroma_repo import get_chroma_repo, ChromaRepository
 from app.api.auth import get_current_user
@@ -71,6 +72,51 @@ async def process_chat_query(
     logger.info(f"Processing chat query for user {current_user.email}")
     
     try:
+        # GUARDRAILS CHECK - Validate input before processing
+        guardrails_service = get_guardrails_service()
+        try:
+            guardrails_service.validate_input(request.message)
+            logger.debug(f"Guardrails validation passed for user {current_user.email}")
+        except GuardrailValidationError as guardrail_error:
+            # Handle our custom guardrail exception
+            error_message = guardrail_error.message
+            violation_type = guardrail_error.violation_type or "unknown"
+            
+            logger.warning(
+                f"Guardrail violation for user {current_user.email}: {error_message} | "
+                f"Type: {violation_type} | Query: {request.message[:100]}..."
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "Query validation failed",
+                    "message": error_message,
+                    "reason": (
+                        "Your query may contain security concerns or requests for sensitive information. "
+                        "Please rephrase your question to focus on HR or IT policy information."
+                    )
+                }
+            )
+        except Exception as guardrail_error:
+            # Handle any other unexpected exceptions
+            error_message = str(guardrail_error)
+            logger.error(
+                f"Unexpected guardrail error for user {current_user.email}: {error_message} | "
+                f"Query: {request.message[:100]}...",
+                exc_info=True
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "Query validation failed",
+                    "message": "An error occurred while validating your query. Please try again.",
+                    "reason": (
+                        "Your query may contain security concerns or requests for sensitive information. "
+                        "Please rephrase your question to focus on HR or IT policy information."
+                    )
+                }
+            )
+        
         # Get or create session
         if request.session_id:
             session = await chat_service.get_session(request.session_id, current_user)
