@@ -1,5 +1,6 @@
 import { User, Sparkles, Briefcase, Users, Search, Copy, ThumbsUp, ThumbsDown, Shield, AlertTriangle, CheckCircle, Info } from 'lucide-react'
 import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 
 const MessageBubble = ({ message, showConfidence = true }) => {
   const [copied, setCopied] = useState(false)
@@ -125,7 +126,39 @@ const MessageBubble = ({ message, showConfidence = true }) => {
         </div>
         
         <div className="message-content-modern">
-          {message.content}
+          <ReactMarkdown
+            components={{
+              // Style bold text with purple accent
+              strong: ({node, ...props}) => (
+                <strong style={{fontWeight: 600, color: '#8B5CF6'}} {...props} />
+              ),
+              // Style paragraphs with proper spacing
+              p: ({node, ...props}) => (
+                <p style={{marginBottom: '1em', lineHeight: '1.6', marginTop: 0}} {...props} />
+              ),
+              // Style horizontal rules (---) as separators
+              hr: ({node, ...props}) => (
+                <hr style={{
+                  border: 'none',
+                  borderTop: '1px solid rgba(139, 92, 246, 0.3)',
+                  margin: '1.5em 0',
+                  width: '100%'
+                }} {...props} />
+              ),
+              // Style lists
+              ul: ({node, ...props}) => (
+                <ul style={{marginBottom: '1em', paddingLeft: '1.5em', lineHeight: '1.6'}} {...props} />
+              ),
+              ol: ({node, ...props}) => (
+                <ol style={{marginBottom: '1em', paddingLeft: '1.5em', lineHeight: '1.6'}} {...props} />
+              ),
+              li: ({node, ...props}) => (
+                <li style={{marginBottom: '0.5em'}} {...props} />
+              ),
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
         </div>
 
         {/* Confidence Badge */}
