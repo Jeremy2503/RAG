@@ -35,7 +35,7 @@ const MessageBubble = ({ message, showConfidence = true }) => {
       case 'hr_policy':
         return 'HR Policy Agent'
       case 'research':
-        return 'Research Agent'
+        return 'Coordinator Agent'
       case 'coordinator':
         return 'Coordinator'
       default:
